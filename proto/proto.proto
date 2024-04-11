@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package pub_sub;
+
+option  go_package = "./proto";
+
+message SyncTopic {
+  int64 number = 1;
+  string roman = 2;
+  string description =3;
+}
+
+message NoParam {
+}
+
+service  Publisher {
+  rpc Send(SyncTopic) returns (NoParam) {};
+}

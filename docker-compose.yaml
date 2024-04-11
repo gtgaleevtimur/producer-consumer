@@ -1,0 +1,57 @@
+version: '3'
+services:
+  zookeeper:
+    image: confluentinc/cp-zookeeper:latest
+    container_name: zookeeper
+    ports:
+      - "2183:2183"
+    environment:
+      - ZOOKEEPER_CLIENT_PORT=2183
+
+  kafka:
+    image: confluentinc/cp-kafka:latest
+    container_name: kafka
+    ports:
+      - "9093:9093"
+    environment:
+      - KAFKA_BROKER_ID=1
+      - KAFKA_ZOOKEEPER_CONNECT=zookeeper:2183
+      - KAFKA_LISTENERS=PLAINTEXT://:9093
+      - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9093
+      - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1
+    depends_on:
+      - zookeeper
+    healthcheck:
+      test: [ "CMD", "bash", "-c", "unset" , "JMX_PORT" ,";" ,"kafka-topics.sh","--zookeeper","zookeeper:2183","--list" ]
+      interval: 30s
+      timeout: 10s
+      retries: 4
+
+  kafka-consumer-test:
+    build:
+      context: .
+      dockerfile: dockerfiles/consumer.Dockerfile
+    environment:
+      - KAFKA_PRODUCER_ADDRESSES=kafka:9093
+      - PROMETHEUS_ADDRESS=:8080
+      - INTERVAL=10
+      - COUNT=10
+    depends_on:
+      kafka:
+        condition: service_healthy
+      zookeeper:
+        condition: service_started
+
+  kafka-producer-test:
+    build:
+      context: .
+      dockerfile: dockerfiles/producer.Dockerfile
+    environment:
+      - KAFKA_PRODUCER_ADDRESSES=kafka:9093
+    depends_on:
+      kafka:
+        condition: service_healthy
+      zookeeper:
+        condition: service_started
+      kafka-consumer-test:
+        condition: service_started
